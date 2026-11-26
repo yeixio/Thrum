@@ -69,6 +69,9 @@ type Collector struct {
 	deploys  appslisters.DeploymentLister
 	events   chan Event
 	exclude  map[string]bool
+	// handlersSynced report when each handler has been told about
+	// everything that existed at startup.
+	handlersSynced []cache.InformerSynced
 
 	mu          sync.Mutex
 	synced      bool
@@ -107,9 +110,15 @@ func New(client kubernetes.Interface, metrics metricsclient.Interface, opts Opti
 	depInf := c.nsFactor.Apps().V1().Deployments()
 	c.nodes, c.pods, c.deploys = nodeInf.Lister(), podInf.Lister(), depInf.Lister()
 
-	_, _ = nodeInf.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{UpdateFunc: c.onNodeUpdate})
-	_, _ = podInf.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{UpdateFunc: c.onPodUpdate})
-	_, _ = depInf.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	register := func(inf cache.SharedIndexInformer, h cache.ResourceEventHandler) {
+		// Registration only fails on a stopped informer, which a new one is not.
+		if reg, err := inf.AddEventHandler(h); err == nil {
+			c.handlersSynced = append(c.handlersSynced, reg.HasSynced)
+		}
+	}
+	register(nodeInf.Informer(), cache.ResourceEventHandlerFuncs{UpdateFunc: c.onNodeUpdate})
+	register(podInf.Informer(), cache.ResourceEventHandlerFuncs{UpdateFunc: c.onPodUpdate})
+	register(depInf.Informer(), cache.ResourceEventHandlerDetailedFuncs{
 		AddFunc:    c.onDeploymentAdd,
 		UpdateFunc: c.onDeploymentUpdate,
 	})
@@ -129,6 +138,12 @@ func (c *Collector) Start(ctx context.Context) bool {
 		if !ok {
 			return false
 		}
+	}
+	// The caches fill before the handlers hear about the initial objects.
+	// Wait for the handlers too, so that what already existed is never
+	// reported as a new event.
+	if !cache.WaitForCacheSync(ctx.Done(), c.handlersSynced...) {
+		return false
 	}
 	c.mu.Lock()
 	c.synced = true
@@ -236,7 +251,10 @@ func (c *Collector) onPodUpdate(oldObj, newObj any) {
 	}
 }
 
-func (c *Collector) onDeploymentAdd(obj any) {
+func (c *Collector) onDeploymentAdd(obj any, isInInitialList bool) {
+	if isInInitialList {
+		return
+	}
 	if d, ok := obj.(*appsv1.Deployment); ok {
 		c.emit(Deployment, d.Namespace, d.Name)
 	}

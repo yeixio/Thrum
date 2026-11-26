@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/yeixio/thrum/collector/internal/fakeapi"
 	"github.com/yeixio/thrum/collector/internal/server"
@@ -37,7 +39,10 @@ func TestCollectorEndToEnd(t *testing.T) {
 		if err := os.WriteFile(kubeconfig, []byte(fakeapi.Kubeconfig(api.URL, scenario)), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command(bin, "--kubeconfig", kubeconfig, "--once")
+		// A collector that cannot sync would otherwise hang the whole suite.
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, bin, "--kubeconfig", kubeconfig, "--once")
 		cmd.Env = append(os.Environ(), "KUBECONFIG=")
 		out, err := cmd.Output()
 		if err != nil {
