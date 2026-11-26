@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thrum · sound engine</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Thrum</h1>
+          <p class="sub">Sound engine preview: a simulated cluster drives the soundscape. No Kubernetes yet.</p>
+        </div>
+        <button id="power" class="primary" aria-pressed="false">Start sound</button>
+      </header>
+
+      <section class="stage">
+        <div class="orb-wrap">
+          <div id="orb" class="orb"></div>
+          <div class="health">
+            <span id="health-value">100</span>
+            <span class="label">health heard</span>
+          </div>
+        </div>
+        <canvas id="spectrum" width="900" height="200" aria-label="Live spectrum of the sound"></canvas>
+      </section>
+
+      <section>
+        <h2>Scenarios</h2>
+        <div id="scenarios" class="chips"></div>
+        <p id="scenario-note" class="note"></p>
+      </section>
+
+      <div class="columns">
+        <section>
+          <h2>Load <span class="hint">how busy (changes energy and texture)</span></h2>
+          <div id="load"></div>
+        </section>
+        <section>
+          <h2>Conditions <span class="hint">how unwell (changes tension)</span></h2>
+          <div id="conditions"></div>
+          <label class="row check">
+            <input type="checkbox" id="auto-health" checked />
+            <span>Derive health from conditions</span>
+          </label>
+          <div id="health-row"></div>
+        </section>
+      </div>
+
+      <div class="columns">
+        <section>
+          <h2>Events</h2>
+          <div id="events" class="chips"></div>
+          <p id="event-note" class="note"></p>
+        </section>
+        <section>
+          <h2>Listening</h2>
+          <label class="row">
+            <span>Sound profile</span>
+            <select id="profile"></select>
+          </label>
+          <div id="listening"></div>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
