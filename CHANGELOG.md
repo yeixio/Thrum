@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Local HTTP API with server-sent events for state and cluster events.
 - Live cluster mode in the app.
 - Fake API server for trying live mode without a cluster.
+- Desktop app (Tauri) with a bundled collector, a kubeconfig context picker and a system tray with a health readout.
+- Release workflow that builds installers for macOS, Linux and Windows from a version tag.
 
 ### Changed
 

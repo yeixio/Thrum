@@ -25,7 +25,7 @@ Dashboards need your eyes. Alerts need a threshold someone guessed months ago. N
 Thrum is a background sense. Leave it playing while you work and you'll learn what normal sounds like. When pods start crash-looping, a node drops out or memory runs short, the soundscape shifts. You notice the way you'd notice a fan spinning up or rain getting heavier: without being interrupted.
 
 > [!NOTE]
-> **Thrum is in early development.** The sound engine and a read-only Kubernetes collector work today, in a browser. The desktop app is the next milestone. Now is a great time to get involved and shape how it turns out.
+> **Thrum is in early development.** The sound engine, a read-only Kubernetes collector and a desktop app all work today. Signed installers and richer observability are next. Now is a great time to get involved and shape how it turns out.
 
 ## Principles
 
@@ -60,6 +60,18 @@ go run ./cmd/thrum-collector
 ```
 
 Then press **Connect to cluster** in the app. The collector only ever reads from your cluster, and serves on localhost only by default. See [collector/README.md](collector/README.md) for options, the health model, and a fake cluster you can use if you don't have one handy.
+
+### Run the desktop app
+
+The desktop app bundles the collector, lists your kubeconfig contexts in a picker, and keeps playing from the system tray when you close the window. The tray shows the current health score.
+
+You need Node.js, Go and [Rust](https://rustup.rs/), plus the [Tauri system libraries](https://tauri.app/start/prerequisites/) on Linux.
+
+```sh
+npm install
+npm run desktop          # development
+npm run desktop:build    # installers for your platform
+```
 
 ## How it sounds
 
@@ -105,7 +117,7 @@ The contract between health and sound is a single normalized `ClusterState`: an 
 
 ```
 engine/        Sound engine (TypeScript, Web Audio). No UI, no Kubernetes.
-app/           Simulator UI for the engine. Becomes the desktop app.
+app/           The UI: simulator, live cluster mode, and the Tauri desktop shell (app/src-tauri).
 collector/     Go service that reads cluster state (client-go) and scores health.
 deploy/        Read-only RBAC for the collector. A Helm chart is planned.
 ```
@@ -114,7 +126,7 @@ deploy/        Read-only RBAC for the collector. A Helm chart is planned.
 
 - [x] **Phase 1: Sound engine.** Procedural noise, layered mixing, smooth transitions between states, simulator UI.
 - [x] **Phase 2: Kubernetes integration.** Read kubeconfig, collect telemetry with client-go, build the health model, drive the engine live.
-- [ ] **Phase 3: Desktop experience.** Tauri app, system tray, cluster selection, health visuals.
+- [x] **Phase 3: Desktop experience.** Tauri app, system tray, cluster selection, health visuals.
 - [ ] **Phase 4: Advanced observability.** Prometheus metrics, multiple clusters each with their own sound identity, anomaly detection, custom profiles.
 
 Have an idea that isn't here? [Start a discussion or open a feature request](https://github.com/yeixio/Thrum/issues/new/choose).

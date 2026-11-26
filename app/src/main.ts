@@ -10,6 +10,7 @@ import {
   type ProfileName,
 } from '@thrum/engine';
 import { deriveHealth } from './demo-health';
+import { isDesktop, listContexts, onTrayToggleSound, setTray, startCollector, stopCollector } from './desktop';
 import { connectLive, type LiveUpdate } from './live';
 import { SCENARIOS, type Scenario } from './scenarios';
 
@@ -235,6 +236,11 @@ for (const type of Object.keys(EVENT_LABELS) as EventType[]) {
 let disconnect: (() => void) | null = null;
 const liveButton = $<HTMLButtonElement>('live-connect');
 const liveStatus = $('live-status');
+const contextSelect = $<HTMLSelectElement>('live-context');
+const SIMULATOR_NOTE = isDesktop
+  ? 'Simulator. Pick a cluster and connect to hear it.'
+  : 'Simulator. Run thrum-collector and connect to hear a real cluster.';
+let trayHealth = -1;
 let lastUpdate: LiveUpdate | null = null;
 
 function describe(u: LiveUpdate): string {
@@ -260,26 +266,51 @@ function stopLive(): void {
   lastUpdate = null;
   document.body.classList.remove('live');
   liveButton.textContent = 'Connect to cluster';
-  liveStatus.textContent = 'Simulator. Run thrum-collector and connect to hear a real cluster.';
+  liveStatus.textContent = SIMULATOR_NOTE;
+  if (isDesktop) {
+    void stopCollector();
+    void setTray(null, null);
+    trayHealth = -1;
+  }
   autoHealth = true;
   $<HTMLInputElement>('auto-health').checked = true;
   changed();
 }
 
-liveButton.addEventListener('click', () => {
-  if (disconnect) return stopLive();
-  if (stormTimer) clearInterval(stormTimer);
-  stormTimer = null;
+/** Where to connect: the bundled collector on desktop, a typed address in a browser. */
+async function liveTarget(): Promise<{ base: string; token: string }> {
+  if (isDesktop) {
+    liveStatus.textContent = 'Connecting to the cluster…';
+    const conn = await startCollector(contextSelect.value);
+    return { base: conn.url, token: conn.token };
+  }
   let base: string;
   try {
     base = new URL($<HTMLInputElement>('live-url').value).toString();
   } catch {
-    liveStatus.textContent = 'That address is not a valid URL.';
+    throw new Error('That address is not a valid URL.');
+  }
+  return { base, token: $<HTMLInputElement>('live-token').value };
+}
+
+liveButton.addEventListener('click', async () => {
+  if (disconnect) return stopLive();
+  if (stormTimer) clearInterval(stormTimer);
+  stormTimer = null;
+  let base: string;
+  let token: string;
+  liveButton.disabled = true;
+  try {
+    ({ base, token } = await liveTarget());
+  } catch (err) {
+    liveStatus.textContent = err instanceof Error ? err.message : `Could not connect: ${String(err)}`;
     return;
+  } finally {
+    liveButton.disabled = false;
   }
   document.body.classList.add('live');
   liveButton.textContent = 'Disconnect';
-  disconnect = connectLive(base, $<HTMLInputElement>('live-token').value, {
+  disconnect = connectLive(base, token, {
     onStatus(status) {
       if (status === 'connected' && lastUpdate) liveStatus.textContent = describe(lastUpdate);
       else if (status !== 'connected')
@@ -297,6 +328,10 @@ liveButton.addEventListener('click', () => {
       autoHealth = false;
       $<HTMLInputElement>('auto-health').checked = false;
       liveStatus.textContent = describe(u);
+      if (isDesktop && Math.round(u.state.health) !== trayHealth) {
+        trayHealth = Math.round(u.state.health);
+        void setTray(trayHealth, u.cluster);
+      }
       push();
     },
     onEvent(type, name) {
@@ -306,6 +341,33 @@ liveButton.addEventListener('click', () => {
     },
   });
 });
+
+if (isDesktop) {
+  // The desktop app runs its own collector, so there is no address to type.
+  $('live-url').hidden = true;
+  $('live-token').hidden = true;
+  contextSelect.hidden = false;
+  liveStatus.textContent = SIMULATOR_NOTE;
+  listContexts()
+    .then(({ current, contexts }) => {
+      for (const name of contexts) {
+        const o = document.createElement('option');
+        o.value = name;
+        o.textContent = name;
+        contextSelect.append(o);
+      }
+      contextSelect.value = current;
+      if (contexts.length === 0) {
+        liveButton.disabled = true;
+        liveStatus.textContent = 'No kubeconfig contexts found. The simulator still works.';
+      }
+    })
+    .catch((err) => {
+      liveButton.disabled = true;
+      liveStatus.textContent = `Could not read your kubeconfig: ${String(err)}`;
+    });
+  void onTrayToggleSound(() => $<HTMLButtonElement>('power').click());
+}
 
 // ---- power ------------------------------------------------------------
 

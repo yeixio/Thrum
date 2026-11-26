@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -54,8 +55,13 @@ func run() error {
 		namespace  = flag.String("namespace", "", "watch pods and deployments in this namespace only")
 		exclude    = flag.String("exclude-namespaces", "", "comma-separated namespaces to ignore")
 		once       = flag.Bool("once", false, "print the current state as JSON and exit")
+		listCtx    = flag.Bool("list-contexts", false, "print the kubeconfig contexts as JSON and exit")
 	)
 	flag.Parse()
+
+	if *listCtx {
+		return printContexts(*kubeconfig)
+	}
 
 	cfg := fileConfig{}
 	hcfg := health.DefaultConfig()
@@ -202,6 +208,26 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+// printContexts lists kubeconfig contexts without contacting any cluster.
+// The desktop app uses it to fill its cluster picker.
+func printContexts(kubeconfig string) error {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	rules.ExplicitPath = kubeconfig
+	raw, err := rules.Load()
+	if err != nil {
+		return fmt.Errorf("loading kubeconfig: %w", err)
+	}
+	out := struct {
+		Current  string   `json:"current"`
+		Contexts []string `json:"contexts"`
+	}{Current: raw.CurrentContext, Contexts: []string{}}
+	for name := range raw.Contexts {
+		out.Contexts = append(out.Contexts, name)
+	}
+	sort.Strings(out.Contexts)
+	return json.NewEncoder(os.Stdout).Encode(out)
 }
 
 func firstNonEmpty(vals ...string) string {

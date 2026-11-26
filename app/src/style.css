@@ -229,6 +229,15 @@ button.active {
   gap: 8px;
 }
 
+.source select {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.source [hidden] {
+  display: none;
+}
+
 .source input {
   font: inherit;
   color: var(--text);

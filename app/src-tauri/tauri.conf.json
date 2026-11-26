@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Thrum",
+  "version": "0.1.0",
+  "identifier": "io.github.yeixio.thrum",
+  "build": {
+    "beforeDevCommand": "node ../scripts/build-collector.mjs && npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "node ../scripts/build-collector.mjs && npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Thrum",
+        "width": 1020,
+        "height": 880,
+        "minWidth": 380,
+        "minHeight": 520
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Hear the health of your Kubernetes cluster",
+    "externalBin": ["binaries/thrum-collector"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
