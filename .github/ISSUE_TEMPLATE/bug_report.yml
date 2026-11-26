@@ -1,0 +1,49 @@
+name: Bug report
+description: Something isn't working, or doesn't sound right
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a problem.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see or hear, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `npm run dev`
+        2. Choose the "Rain" profile
+        3. Click "Node down"
+        4. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Sound engine
+        - Simulator / app UI
+        - Collector
+        - Helm chart
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser and version, Node.js version, Kubernetes version if relevant
+      placeholder: macOS 15, Chrome 131, Node 22
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or console output
+      render: shell

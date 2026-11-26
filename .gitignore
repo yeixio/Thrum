@@ -1,4 +1,22 @@
+# Dependencies and build output
 node_modules/
 dist/
+target/
+bin/
+
+# Logs and coverage
 *.log
+coverage/
+
+# Local environment
+.env
+.env.*
+!.env.example
+*.kubeconfig
+
+# Editors and OS
 .DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
