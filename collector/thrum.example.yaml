@@ -1,0 +1,30 @@
+# Example configuration for thrum-collector. Every field is optional.
+# Use it with: thrum-collector --config thrum.yaml
+
+listen: 127.0.0.1:7878
+interval: 2s
+
+# Watch one namespace only. Leave empty to watch all of them.
+namespace: ""
+excludeNamespaces:
+  - sandbox
+
+# How long a pod may be Pending before it counts as a problem.
+pendingGrace: 90s
+
+# Extra browser origins allowed to read the API. Loopback origins and the
+# desktop app are always allowed.
+allowOrigins: []
+
+health:
+  # The fraction of remaining health each fully severe condition removes.
+  weights:
+    pendingPods: 0.35
+    crashLoop: 0.5
+    nodeNotReady: 0.6
+    apiLatency: 0.3
+    failedWorkloads: 0.5
+  # API server round trips at or below "ok" are fine. At or above "bad"
+  # they are fully severe.
+  apiLatencyOkMs: 250
+  apiLatencyBadMs: 2500

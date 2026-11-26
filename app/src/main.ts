@@ -10,6 +10,7 @@ import {
   type ProfileName,
 } from '@thrum/engine';
 import { deriveHealth } from './demo-health';
+import { connectLive, type LiveUpdate } from './live';
 import { SCENARIOS, type Scenario } from './scenarios';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -228,6 +229,83 @@ for (const type of Object.keys(EVENT_LABELS) as EventType[]) {
   b.addEventListener('click', () => fire(type));
   $('events').append(b);
 }
+
+// ---- live cluster -----------------------------------------------------
+
+let disconnect: (() => void) | null = null;
+const liveButton = $<HTMLButtonElement>('live-connect');
+const liveStatus = $('live-status');
+let lastUpdate: LiveUpdate | null = null;
+
+function describe(u: LiveUpdate): string {
+  const d = u.detail;
+  const parts = [
+    `${d.nodesTotal - d.nodesNotReady}/${d.nodesTotal} nodes ready`,
+    `${d.podsTotal} pods`,
+    `${d.deploymentsTotal} deployments`,
+  ];
+  if (d.podsCrashLooping) parts.push(`${d.podsCrashLooping} crash looping`);
+  if (d.podsPending) parts.push(`${d.podsPending} pending`);
+  if (d.podsFailing) parts.push(`${d.podsFailing} failing`);
+  if (d.deploymentsUnavailable)
+    parts.push(`${d.deploymentsUnavailable} ${d.deploymentsUnavailable === 1 ? 'deployment' : 'deployments'} unavailable`);
+  if (!d.metricsAvailable) parts.push('no metrics-server, so CPU and memory are not heard');
+  if (!d.apiReachable) parts.push('API server unreachable');
+  return `Live: ${u.cluster || 'cluster'}. ${parts.join(', ')}.`;
+}
+
+function stopLive(): void {
+  disconnect?.();
+  disconnect = null;
+  lastUpdate = null;
+  document.body.classList.remove('live');
+  liveButton.textContent = 'Connect to cluster';
+  liveStatus.textContent = 'Simulator. Run thrum-collector and connect to hear a real cluster.';
+  autoHealth = true;
+  $<HTMLInputElement>('auto-health').checked = true;
+  changed();
+}
+
+liveButton.addEventListener('click', () => {
+  if (disconnect) return stopLive();
+  if (stormTimer) clearInterval(stormTimer);
+  stormTimer = null;
+  let base: string;
+  try {
+    base = new URL($<HTMLInputElement>('live-url').value).toString();
+  } catch {
+    liveStatus.textContent = 'That address is not a valid URL.';
+    return;
+  }
+  document.body.classList.add('live');
+  liveButton.textContent = 'Disconnect';
+  disconnect = connectLive(base, $<HTMLInputElement>('live-token').value, {
+    onStatus(status) {
+      if (status === 'connected' && lastUpdate) liveStatus.textContent = describe(lastUpdate);
+      else if (status !== 'connected')
+        liveStatus.textContent =
+          status === 'connecting' ? 'Connecting…' : 'Cannot reach the collector. Retrying…';
+    },
+    onUpdate(u) {
+      lastUpdate = u;
+      Object.assign(state.load, u.state.load);
+      Object.assign(state.conditions, u.state.conditions);
+      state.health = u.state.health;
+      for (const k of LOAD_KEYS) sliders[k]!.set(state.load[k]);
+      for (const k of CONDITION_KEYS) sliders[k]!.set(state.conditions[k]);
+      healthSlider.set(state.health);
+      autoHealth = false;
+      $<HTMLInputElement>('auto-health').checked = false;
+      liveStatus.textContent = describe(u);
+      push();
+    },
+    onEvent(type, name) {
+      if (!engine?.isRunning) return;
+      const played = engine.trigger(type);
+      $('event-note').textContent = `${played ? 'Played' : 'Held back'}: ${EVENT_LABELS[type]}${name ? ` (${name})` : ''}.`;
+    },
+  });
+});
 
 // ---- power ------------------------------------------------------------
 
