@@ -50,6 +50,25 @@ func TestCollectorEndToEnd(t *testing.T) {
 		return p
 	}
 
+	// Listing contexts must work without contacting a cluster.
+	offline := filepath.Join(dir, "offline.kubeconfig")
+	if err := os.WriteFile(offline, []byte(fakeapi.Kubeconfig("http://127.0.0.1:1", "homelab")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	listCmd := exec.Command(bin, "--kubeconfig", offline, "--list-contexts")
+	listCmd.Env = append(os.Environ(), "KUBECONFIG=")
+	listOut, err := listCmd.Output()
+	if err != nil {
+		t.Fatalf("list-contexts: %v", err)
+	}
+	var contexts struct {
+		Current  string
+		Contexts []string
+	}
+	if err := json.Unmarshal(listOut, &contexts); err != nil || contexts.Current != "homelab" || len(contexts.Contexts) != 1 {
+		t.Fatalf("list-contexts: %v %s", err, listOut)
+	}
+
 	healthy := observe("healthy")
 	if healthy.Cluster != "healthy" || healthy.State.Health != 100 {
 		t.Errorf("healthy: %+v", healthy.State)

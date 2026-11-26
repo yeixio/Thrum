@@ -4,6 +4,17 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview" },
-  "dependencies": { "@thrum/engine": "*" }
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.5",
+    "@thrum/engine": "*"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.6"
+  }
 }

@@ -2,12 +2,17 @@
   "name": "thrum",
   "private": true,
   "license": "MIT",
-  "workspaces": ["engine", "app"],
+  "workspaces": [
+    "engine",
+    "app"
+  ],
   "scripts": {
     "dev": "npm run dev -w app",
     "build": "npm run build -w app",
     "test": "npm run test -w engine",
-    "typecheck": "tsc -p engine --noEmit && tsc -p app --noEmit"
+    "typecheck": "tsc -p engine --noEmit && tsc -p app --noEmit",
+    "desktop": "npm run tauri -w app -- dev",
+    "desktop:build": "npm run tauri -w app -- build"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
