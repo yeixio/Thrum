@@ -4,7 +4,7 @@ Watches a Kubernetes cluster with **read-only** access and publishes a normalize
 
 ## Run it
 
-Requires Go 1.24 or newer.
+Requires Go 1.26 or newer.
 
 ```sh
 cd collector

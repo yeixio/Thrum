@@ -52,7 +52,7 @@ Headphones help. Keep the volume low, the way you'd run it all day.
 
 ### Hear a real cluster
 
-With [Go](https://go.dev/) 1.24 or newer and a kubeconfig, start the collector in a second terminal:
+With [Go](https://go.dev/) 1.26 or newer and a kubeconfig, start the collector in a second terminal:
 
 ```sh
 cd collector

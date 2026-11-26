@@ -119,70 +119,138 @@ func Scenario(name string) (Cluster, error) {
 	return c, nil
 }
 
-// Handler serves list and (silent) watch requests for the cluster.
+// collection describes one resource type the fake server can list and watch.
+type collection struct {
+	kind, apiVersion string
+	// items returns the objects in a namespace ("" means all), each with
+	// its kind and apiVersion filled in.
+	items func(ns string) []any
+	// list wraps items in the matching List type.
+	list func(items []any) any
+}
+
+func typeMeta(kind, apiVersion string) metav1.TypeMeta {
+	return metav1.TypeMeta{Kind: kind, APIVersion: apiVersion}
+}
+
+// Handler serves list and watch requests for the cluster. Nothing ever
+// changes, so a watch stays quiet after any initial events it was asked for.
 func Handler(c Cluster) http.Handler {
 	writeJSON := func(w http.ResponseWriter, v any) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
 	meta := metav1.ListMeta{ResourceVersion: "1"}
-	list := func(build func(ns string) any) http.HandlerFunc {
+
+	serve := func(res collection) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
 				// The collector must never write. Make it loud if it tries.
 				http.Error(w, "fakeapi is read-only", http.StatusMethodNotAllowed)
 				return
 			}
-			if r.URL.Query().Get("watch") == "true" {
-				// Nothing ever changes here: hold the watch open and stay quiet.
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				if f, ok := w.(http.Flusher); ok {
-					f.Flush()
-				}
-				<-r.Context().Done()
-				return
-			}
 			ns := ""
 			if parts := strings.Split(r.URL.Path, "/namespaces/"); len(parts) == 2 {
 				ns = strings.Split(parts[1], "/")[0]
 			}
-			writeJSON(w, build(ns))
+			q := r.URL.Query()
+			if q.Get("watch") != "true" {
+				writeJSON(w, res.list(res.items(ns)))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			enc := json.NewEncoder(w)
+			if q.Get("sendInitialEvents") == "true" {
+				// Newer clients list through the watch: send every object,
+				// then a bookmark that marks the end of the initial state.
+				for _, item := range res.items(ns) {
+					_ = enc.Encode(map[string]any{"type": "ADDED", "object": item})
+				}
+				_ = enc.Encode(map[string]any{"type": "BOOKMARK", "object": map[string]any{
+					"kind": res.kind, "apiVersion": res.apiVersion,
+					"metadata": map[string]any{
+						"resourceVersion": "1",
+						"annotations":     map[string]string{"k8s.io/initial-events-end": "true"},
+					},
+				}})
+			}
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			<-r.Context().Done()
 		}
 	}
-	pods := list(func(ns string) any {
-		out := corev1.PodList{TypeMeta: metav1.TypeMeta{Kind: "PodList", APIVersion: "v1"}, ListMeta: meta}
-		for _, p := range c.Pods {
-			if ns == "" || p.Namespace == ns {
-				out.Items = append(out.Items, p)
+
+	nodes := serve(collection{
+		kind: "Node", apiVersion: "v1",
+		items: func(string) []any {
+			out := []any{}
+			for _, n := range c.Nodes {
+				n.TypeMeta = typeMeta("Node", "v1")
+				out = append(out, n)
 			}
-		}
-		return out
+			return out
+		},
+		list: func(items []any) any {
+			return map[string]any{"kind": "NodeList", "apiVersion": "v1", "metadata": meta, "items": items}
+		},
 	})
-	deployments := list(func(ns string) any {
-		out := appsv1.DeploymentList{TypeMeta: metav1.TypeMeta{Kind: "DeploymentList", APIVersion: "apps/v1"}, ListMeta: meta}
-		for _, d := range c.Deployments {
-			if ns == "" || d.Namespace == ns {
-				out.Items = append(out.Items, d)
+	pods := serve(collection{
+		kind: "Pod", apiVersion: "v1",
+		items: func(ns string) []any {
+			out := []any{}
+			for _, p := range c.Pods {
+				if ns == "" || p.Namespace == ns {
+					p.TypeMeta = typeMeta("Pod", "v1")
+					out = append(out, p)
+				}
 			}
-		}
-		return out
+			return out
+		},
+		list: func(items []any) any {
+			return map[string]any{"kind": "PodList", "apiVersion": "v1", "metadata": meta, "items": items}
+		},
+	})
+	deployments := serve(collection{
+		kind: "Deployment", apiVersion: "apps/v1",
+		items: func(ns string) []any {
+			out := []any{}
+			for _, d := range c.Deployments {
+				if ns == "" || d.Namespace == ns {
+					d.TypeMeta = typeMeta("Deployment", "apps/v1")
+					out = append(out, d)
+				}
+			}
+			return out
+		},
+		list: func(items []any) any {
+			return map[string]any{"kind": "DeploymentList", "apiVersion": "apps/v1", "metadata": meta, "items": items}
+		},
+	})
+	nodeMetrics := serve(collection{
+		kind: "NodeMetrics", apiVersion: "metrics.k8s.io/v1beta1",
+		items: func(string) []any {
+			out := []any{}
+			for _, m := range c.NodeMetrics {
+				m.TypeMeta = typeMeta("NodeMetrics", "metrics.k8s.io/v1beta1")
+				out = append(out, m)
+			}
+			return out
+		},
+		list: func(items []any) any {
+			return map[string]any{"kind": "NodeMetricsList", "apiVersion": "metrics.k8s.io/v1beta1", "metadata": meta, "items": items}
+		},
 	})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
-	mux.HandleFunc("/api/v1/nodes", list(func(string) any {
-		return corev1.NodeList{TypeMeta: metav1.TypeMeta{Kind: "NodeList", APIVersion: "v1"}, ListMeta: meta, Items: c.Nodes}
-	}))
+	mux.HandleFunc("/api/v1/nodes", nodes)
 	mux.HandleFunc("/api/v1/pods", pods)
 	mux.HandleFunc("/api/v1/namespaces/", pods)
 	mux.HandleFunc("/apis/apps/v1/deployments", deployments)
 	mux.HandleFunc("/apis/apps/v1/namespaces/", deployments)
-	mux.HandleFunc("/apis/metrics.k8s.io/v1beta1/nodes", list(func(string) any {
-		return metricsv1beta1.NodeMetricsList{
-			TypeMeta: metav1.TypeMeta{Kind: "NodeMetricsList", APIVersion: "metrics.k8s.io/v1beta1"}, Items: c.NodeMetrics,
-		}
-	}))
+	mux.HandleFunc("/apis/metrics.k8s.io/v1beta1/nodes", nodeMetrics)
 	return mux
 }
 
