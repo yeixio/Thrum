@@ -11,3 +11,17 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  - package-ecosystem: gomod
+    directory: /collector
+    schedule:
+      interval: monthly
+    groups:
+      go-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /app/src-tauri
+    schedule:
+      interval: monthly
+    groups:
+      rust-dependencies:
+        patterns: ["*"]
