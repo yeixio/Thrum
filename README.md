@@ -1,10 +1,31 @@
+<div align="center">
+
 # Thrum
 
 **Hear the health of your Kubernetes cluster.**
 
-Thrum turns cluster telemetry into a continuous ambient soundscape. When everything is healthy it sounds peaceful. As the cluster comes under stress, degrades or fails, the sound changes with it, so you can keep an ear on your infrastructure without watching a dashboard.
+Thrum turns cluster telemetry into a continuous, procedurally generated ambient soundscape.<br>
+Healthy sounds peaceful. Trouble sounds like trouble. You never have to look at a dashboard to notice.
 
-> Status: early development. The sound engine exists and runs against a simulated cluster. Kubernetes integration is next.
+[![CI](https://github.com/yeixio/Thrum/actions/workflows/ci.yml/badge.svg)](https://github.com/yeixio/Thrum/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Good first issues](https://img.shields.io/github/issues/yeixio/Thrum/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/yeixio/Thrum/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+
+[Try it](#try-it) · [How it sounds](#how-it-sounds) · [Architecture](#architecture) · [Roadmap](#roadmap) · [Contributing](#contributing)
+
+<img src="docs/images/simulator.png" alt="The Thrum sound engine simulator: a health meter reading 63, a health history graph, scenario buttons, sliders for load and conditions, event triggers and listening controls" width="720">
+
+</div>
+
+## Why Thrum?
+
+Dashboards need your eyes. Alerts need a threshold someone guessed months ago. Neither tells you how your cluster *feels* right now.
+
+Thrum is a background sense. Leave it playing while you work and you'll learn what normal sounds like. When pods start crash-looping, a node drops out or memory runs short, the soundscape shifts. You notice the way you'd notice a fan spinning up or rain getting heavier: without being interrupted.
+
+> [!NOTE]
+> **Thrum is in early development.** The sound engine works today against a simulated cluster. Kubernetes integration is the next milestone. Now is a great time to get involved and shape how it turns out.
 
 ## Principles
 
@@ -14,32 +35,38 @@ Thrum turns cluster telemetry into a continuous ambient soundscape. When everyth
 - **Read-only.** Thrum will never need permission to change anything in a cluster.
 - **The sound has to be good.** Everything is synthesized procedurally. There are no samples.
 
-## Try the sound engine
+## Try it
 
-Requires Node.js 20 or newer.
+You need [Node.js](https://nodejs.org/) 20 or newer.
 
 ```sh
+git clone https://github.com/yeixio/Thrum.git
+cd Thrum
 npm install
 npm run dev
 ```
 
-Open the printed URL, press **Start sound**, then try the scenarios and sliders.
+Open the printed URL, press **Start sound**, and click through the scenarios. Try **Busy but healthy** next to **Quiet but failing**: the first has more energy, the second is calmer but clearly wrong.
 
-## How the sound is built
+Headphones help. Keep the volume low, the way you'd run it all day.
+
+## How it sounds
 
 Four layers are mixed into one output:
 
 | Layer | What it is | Driven by |
 |---|---|---|
-| Base | Continuous noise in the profile you choose (white, pink, brown, blue, ocean, wind, rain, drone) | Your preference, shaped by CPU and memory |
-| Workload | A brighter band of noise with a gentle pulse | CPU, network, disk |
-| Anomaly | Tonal voices: consonant when healthy, dissonant when not | Conditions and overall health |
-| Events | Short signatures, rate limited | Restarts, deployments, scaling, failures |
+| **Base** | Continuous noise in the profile you choose: white, pink, brown, blue, ocean, wind, rain or drone | Your preference, shaped by CPU and memory |
+| **Workload** | A brighter band of noise with a gentle pulse | CPU, network, disk |
+| **Anomaly** | Tonal voices: consonant when healthy, dissonant when not | Conditions and overall health |
+| **Events** | Short signatures, rate limited | Restarts, deployments, scaling, failures |
+
+Each signal has its own voice:
 
 | Signal | What you hear |
 |---|---|
 | CPU | Intensity |
-| Memory | Filter closes in. Near the limit, the sound saturates |
+| Memory | The filter closes in. Near the limit, the sound saturates |
 | Network | Pulse rate of the workload layer |
 | Disk I/O | Grain and crackle |
 | Pending pods | Slow beating against the home pitch |
@@ -51,30 +78,53 @@ Four layers are mixed into one output:
 
 State changes are smoothed with hysteresis and separate attack and decay times, so a brief spike barely registers and recovery settles slowly.
 
-## Layout
+## Architecture
+
+```mermaid
+flowchart LR
+    K[Kubernetes API] --> C[Collector<br><i>Go, client-go</i>]
+    P[Prometheus] -.-> C
+    C --> H[Health engine]
+    H -- "ClusterState<br>(health, load, conditions, events)" --> S[Sound engine<br><i>TypeScript, Web Audio</i>]
+    S --> O((Speakers))
+    Sim[Simulator] -- ClusterState --> S
+```
+
+The contract between health and sound is a single normalized `ClusterState`: an overall health score from 0 to 100, load values from 0 to 1, condition severities from 0 to 1, and discrete events. Anything that can produce that shape can drive the sound: the collector, the simulator or a unit test.
 
 ```
-engine/   Sound engine (TypeScript, Web Audio). No UI, no Kubernetes.
-app/      Simulator UI for the engine. Becomes the desktop app.
+engine/        Sound engine (TypeScript, Web Audio). No UI, no Kubernetes.
+app/           Simulator UI for the engine. Becomes the desktop app.
+collector/     Planned. Go service that reads cluster state (client-go).
+deploy/helm/   Planned. Helm chart for running the collector in-cluster.
 ```
-
-Planned: `collector/` (Go, client-go) and `deploy/helm/`.
 
 ## Roadmap
 
-1. **Sound engine**: procedural noise and smooth transitions between states.
-2. **Kubernetes integration**: kubeconfig, telemetry, health model, driving the engine.
-3. **Desktop experience**: Tauri app, system tray, cluster selection, health visuals.
-4. **Advanced observability**: Prometheus, multiple clusters with their own sound identity, anomaly detection, custom profiles.
+- [x] **Phase 1: Sound engine.** Procedural noise, layered mixing, smooth transitions between states, simulator UI.
+- [ ] **Phase 2: Kubernetes integration.** Read kubeconfig, collect telemetry with client-go, build the health model, drive the engine live.
+- [ ] **Phase 3: Desktop experience.** Tauri app, system tray, cluster selection, health visuals.
+- [ ] **Phase 4: Advanced observability.** Prometheus metrics, multiple clusters each with their own sound identity, anomaly detection, custom profiles.
 
-## Development
+Have an idea that isn't here? [Start a discussion or open a feature request](https://github.com/yeixio/Thrum/issues/new/choose).
+
+## Contributing
+
+Contributions of every size are welcome: code, sound design, docs, bug reports and ideas.
+
+- New here? Pick a [good first issue](https://github.com/yeixio/Thrum/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, workflow and conventions.
+- Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+- Found a security problem? See [SECURITY.md](SECURITY.md) and report it privately.
+
+### Development
 
 ```sh
 npm test            # engine unit tests
-npm run typecheck
-npm run build
+npm run typecheck   # type check engine and app
+npm run build       # production build of the app
 ```
 
 ## License
 
-[Apache-2.0](LICENSE)
+Thrum is released under the [MIT License](LICENSE).
