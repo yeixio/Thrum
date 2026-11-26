@@ -1,0 +1,25 @@
+# Everything the Thrum collector is allowed to do in a cluster.
+# It is read-only: there are no create, update, patch or delete verbs.
+#
+# Bind this to whichever user or service account runs the collector:
+#   kubectl apply -f deploy/rbac.yaml
+#   kubectl create clusterrolebinding thrum-collector \
+#     --clusterrole=thrum-collector --user=<you>
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: thrum-collector
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  # Optional. Without metrics-server, CPU and memory are simply not heard.
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+  # Used to time one API server round trip.
+  - nonResourceURLs: ["/readyz"]
+    verbs: ["get"]

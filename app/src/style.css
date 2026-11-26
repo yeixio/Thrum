@@ -222,3 +222,35 @@ button.active {
     grid-template-columns: 104px 1fr 40px;
   }
 }
+
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source input {
+  font: inherit;
+  color: var(--text);
+  background: #0f1319;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+/* While a live cluster drives the sound, the simulator controls only display. */
+body.live .sim {
+  opacity: 0.75;
+}
+
+body.live .sim input,
+body.live .sim button {
+  pointer-events: none;
+}

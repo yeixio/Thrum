@@ -11,7 +11,7 @@
       <header>
         <div>
           <h1>Thrum</h1>
-          <p class="sub">Sound engine preview: a simulated cluster drives the soundscape. No Kubernetes yet.</p>
+          <p class="sub">Hear the health of your cluster. Use the simulator, or connect to a live collector.</p>
         </div>
         <button id="power" class="primary" aria-pressed="false">Start sound</button>
       </header>
@@ -28,17 +28,27 @@
       </section>
 
       <section>
+        <h2>Source</h2>
+        <div class="source">
+          <input id="live-url" type="url" value="http://127.0.0.1:7878" aria-label="Collector address" />
+          <input id="live-token" type="password" placeholder="Token (optional)" aria-label="Collector token" />
+          <button id="live-connect">Connect to cluster</button>
+        </div>
+        <p id="live-status" class="note">Simulator. Run <code>thrum-collector</code> and connect to hear a real cluster.</p>
+      </section>
+
+      <section class="sim">
         <h2>Scenarios</h2>
         <div id="scenarios" class="chips"></div>
         <p id="scenario-note" class="note"></p>
       </section>
 
       <div class="columns">
-        <section>
+        <section class="sim">
           <h2>Load <span class="hint">how busy (changes energy and texture)</span></h2>
           <div id="load"></div>
         </section>
-        <section>
+        <section class="sim">
           <h2>Conditions <span class="hint">how unwell (changes tension)</span></h2>
           <div id="conditions"></div>
           <label class="row check">
