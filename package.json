@@ -1,6 +1,7 @@
 {
   "name": "thrum",
   "private": true,
+  "license": "MIT",
   "workspaces": ["engine", "app"],
   "scripts": {
     "dev": "npm run dev -w app",
