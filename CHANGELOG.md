@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Eight sound profiles: white, pink, brown, blue, ocean, wind, rain and atmospheric drone.
 - Simulator UI with scenarios, load and condition sliders, and event triggers.
 - Contributor documentation, issue and pull request templates.
+- Read-only Kubernetes collector (`thrum-collector`) with a health model that separates load from health.
+- Local HTTP API with server-sent events for state and cluster events.
+- Live cluster mode in the app.
+- Fake API server for trying live mode without a cluster.
 
 ### Changed
 

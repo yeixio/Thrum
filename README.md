@@ -25,7 +25,7 @@ Dashboards need your eyes. Alerts need a threshold someone guessed months ago. N
 Thrum is a background sense. Leave it playing while you work and you'll learn what normal sounds like. When pods start crash-looping, a node drops out or memory runs short, the soundscape shifts. You notice the way you'd notice a fan spinning up or rain getting heavier: without being interrupted.
 
 > [!NOTE]
-> **Thrum is in early development.** The sound engine works today against a simulated cluster. Kubernetes integration is the next milestone. Now is a great time to get involved and shape how it turns out.
+> **Thrum is in early development.** The sound engine and a read-only Kubernetes collector work today, in a browser. The desktop app is the next milestone. Now is a great time to get involved and shape how it turns out.
 
 ## Principles
 
@@ -49,6 +49,17 @@ npm run dev
 Open the printed URL, press **Start sound**, and click through the scenarios. Try **Busy but healthy** next to **Quiet but failing**: the first has more energy, the second is calmer but clearly wrong.
 
 Headphones help. Keep the volume low, the way you'd run it all day.
+
+### Hear a real cluster
+
+With [Go](https://go.dev/) 1.24 or newer and a kubeconfig, start the collector in a second terminal:
+
+```sh
+cd collector
+go run ./cmd/thrum-collector
+```
+
+Then press **Connect to cluster** in the app. The collector only ever reads from your cluster, and serves on localhost only by default. See [collector/README.md](collector/README.md) for options, the health model, and a fake cluster you can use if you don't have one handy.
 
 ## How it sounds
 
@@ -95,14 +106,14 @@ The contract between health and sound is a single normalized `ClusterState`: an 
 ```
 engine/        Sound engine (TypeScript, Web Audio). No UI, no Kubernetes.
 app/           Simulator UI for the engine. Becomes the desktop app.
-collector/     Planned. Go service that reads cluster state (client-go).
-deploy/helm/   Planned. Helm chart for running the collector in-cluster.
+collector/     Go service that reads cluster state (client-go) and scores health.
+deploy/        Read-only RBAC for the collector. A Helm chart is planned.
 ```
 
 ## Roadmap
 
 - [x] **Phase 1: Sound engine.** Procedural noise, layered mixing, smooth transitions between states, simulator UI.
-- [ ] **Phase 2: Kubernetes integration.** Read kubeconfig, collect telemetry with client-go, build the health model, drive the engine live.
+- [x] **Phase 2: Kubernetes integration.** Read kubeconfig, collect telemetry with client-go, build the health model, drive the engine live.
 - [ ] **Phase 3: Desktop experience.** Tauri app, system tray, cluster selection, health visuals.
 - [ ] **Phase 4: Advanced observability.** Prometheus metrics, multiple clusters each with their own sound identity, anomaly detection, custom profiles.
 
@@ -123,6 +134,10 @@ Contributions of every size are welcome: code, sound design, docs, bug reports a
 npm test            # engine unit tests
 npm run typecheck   # type check engine and app
 npm run build       # production build of the app
+
+cd collector
+go vet ./...
+go test -race ./... # collector tests
 ```
 
 ## License
